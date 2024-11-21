@@ -23,7 +23,7 @@ inputs:
     required: false
     default: false
   release_body_override:
-    description: "Override the release body with a customized message. Can be used to generate release note copy dynamically in a previous step and saved to an environment variable (e.g. `release_body: ${{ env.RELEASE_BODY }}`). Can be used with `release_note_only_uses_template: true` to only use the template and/or the release body and drop the notes from the release."
+    description: "Override the release body with a customized message. Can be used to generate release note copy dynamically in a previous step and saved to an environment variable. Can be used with `release_note_only_uses_template: true` to only use the template and/or the release body and drop the notes from the release."
     required: false
 
 runs:
