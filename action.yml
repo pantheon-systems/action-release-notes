@@ -1,0 +1,103 @@
+name: Generate Release Note
+description: Automated release note generation. This action will generate a docs release note from the GitHub release note and create a pull request in the docs repository.
+author: Pantheon Systems
+inputs:
+  github_token:
+    description: A GitHub Personal Access Token with access to the Documentation repository.
+    required: true
+  categories:
+    description: Comma-separated list of categories for the release note. For a complete list of categories and descriptions, see https://github.com/pantheon-systems/documentation/blob/main/source/releasenotescategories/releaseNoteCategories.json
+    required: true
+  docs_repo:
+    description: The documentation repository to create the pull request. (Optional, included for testing against forked repositories.) Must be in <vendor>/<repository> format.
+    required: false
+    default: pantheon-systems/documentation
+  repo_name:
+    description: The repository or project name. Used to create the human-readable repository name (rather than the repo slug). Optional but recommended.
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Generate release notes
+      shell: bash
+      run: |
+        RELEASE_NAME="${{ github.event.release.name }}"
+        RELEASE_BODY="${{ github.event.release.body }}"
+        RELEASE_TAG="${{ github.event.release.tag_name }}"
+        RELEASE_DATE=$(date +%Y-%m-%d)
+        RELEASE_LINK="https://github.com/${{ github.repository }}/releases/tag/${RELEASE_TAG}"
+        REPO_SLUG=$(basename "${{ github.repository }}")
+        REPO_NAME=${{ inputs.repo_name }}
+        if [ -z "$REPO_NAME" ]; then
+          REPO_NAME=$REPO_SLUG
+        fi
+
+        cat <<EOF > release-note.md
+        ---
+        title: ${REPO_NAME} ${RELEASE_TAG} now available
+        published_date: "${RELEASE_DATE}"
+        categories: [${{ inputs.categories }}]
+        ---
+        
+        The latest version of ${REPO_NAME}, [${RELEASE_TAG}](${RELEASE_LINK}), is available as of $(date +"%B, %d, %Y").
+
+        ${RELEASE_BODY}
+        EOF
+
+        echo "release_notes_path=$(pwd)/release-note.md" >> $GITHUB_ENV
+        echo "release_date=${RELEASE_DATE}" >> $GITHUB_ENV
+        echo "repo_name=${REPO_NAME}" >> $GITHUB_ENV
+        echo "repo_slug=${REPO_SLUG}" >> $GITHUB_ENV
+    - name: Create release note PR
+      shell: bash
+      run: |
+        RELEASE_NOTE_SLUG="${{ env.release_date }}-${REPO_SLUG}-$(echo "${{ github.event.release.tag_name }}" | tr '.' '-')"
+        RELEASE_NOTE_FILENAME="${RELEASE_NOTE_SLUG}.md"
+        PR_BRANCH="releasenote-${RELEASE_NOTE_SLUG}"
+        PR_TITLE="Release note for ${{ env.repo_name }} ${{ github.event.release.tag_name }}"
+        PR_BODY="**[Release Notes](https://docs.pantheon.io/releasenotes)** - Adds a release note for [${{ env.repo_name }} ${{ github.event.release.tag_name }}](https://github.com/${{ github.repository }}/releases/tag/${{ github.event.release.tag_name }})."
+
+        echo "Cloning documentation repository: ${{ inputs.docs_repo }}"
+        git clone https://github.com/"${{ inputs.docs_repo }}".git
+        echo "Copying the release notes"
+        if [ -f "${{ env.release_notes_path }}" ]; then
+          mv "${{ env.release_notes_path }}" documentation/source/releasenotes/${RELEASE_NOTE_FILENAME}
+          echo "Release notes copied successfully."
+        else
+          echo "Error: Release notes file not found at ${{ env.release_notes_path }}"
+          exit 1
+        fi
+        cat documentation/source/releasenotes/"${RELEASE_NOTE_FILENAME}"
+        cd documentation
+
+        echo "Setting up git config"
+        git config --global user.name "Pantheon Bot"
+        git config --global user.email "bot@getpantheon.com"
+        git remote set-url origin https://${{ inputs.github_token }}@github.com/${{ inputs.docs_repo }}.git
+        
+        git checkout -b ${PR_BRANCH}
+        git add source/releasenotes/${RELEASE_NOTE_FILENAME}
+        git commit -m "Add release notes for ${{ env.repo_name }} ${{ github.event.release.tag_name }}"
+        git push --set-upstream origin ${PR_BRANCH}
+
+        # Wait for the branch to be created.
+        RETRIES=0
+        while ! git ls-remote --heads origin ${PR_BRANCH} | grep -q "${PR_BRANCH}"; do
+          RETRIES=$((RETRIES+1))
+          if [ ${RETRIES} -ge 5 ]; then
+            echo "Branch ${PR_BRANCH} still not found after 5 retries. Exiting..."
+            exit 1
+          fi
+          echo "Branch ${PR_BRANCH} not found on remote. Waiting for propagation...(${RETRIES}/5)"
+          sleep 5
+        done
+        echo "Branch ${PR_BRANCH} exists on remote."
+
+        echo "Creating pull request"
+        gh pr create \
+          --repo ${{ inputs.docs_repo }}
+          --base main \
+          --head ${PR_BRANCH}
+          --title "${PR_TITLE}" \
+          --BODY "${PR_BODY}"
