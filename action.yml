@@ -5,7 +5,7 @@ inputs:
   github_token:
     description: A GitHub Personal Access Token with access to the Documentation repository.
     required: false
-    default: ${{ env.GH_TOKEN }}
+    default: ${{ secrets.TOKEN }}
   categories:
     description: Comma-separated list of categories for the release note. For a complete list of categories and descriptions, see https://github.com/pantheon-systems/documentation/blob/main/source/releasenotescategories/releaseNoteCategories.json
     required: true
