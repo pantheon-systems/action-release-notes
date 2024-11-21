@@ -15,6 +15,16 @@ inputs:
   repo_name:
     description: The repository or project name. Used to create the human-readable repository name (rather than the repo slug). Optional but recommended.
     required: false
+  template_file:
+    description: Custom release note template file. Should be stored in your .github/workflows/ folder.
+    required: false
+  release_note_only_uses_template:
+    description: Whether the release note should only use the template or to combine the release note template (via template_file) with the actual release notes from the release. Defaults to combine both.
+    required: false
+    default: false
+  release_body_override:
+    description: "Override the release body with a customized message. Can be used to generate release note copy dynamically in a previous step and saved to an environment variable (e.g. `release_body: ${{ env.RELEASE_BODY }}`)."
+    required: false
 
 runs:
   using: composite
@@ -29,8 +39,28 @@ runs:
         RELEASE_LINK="https://github.com/${{ github.repository }}/releases/tag/${RELEASE_TAG}"
         REPO_SLUG=$(basename "${{ github.repository }}")
         REPO_NAME="${{ inputs.repo_name }}"
+        TEMPLATE_FILE="${{ inputs.template_file }}"
+        TEMPLATE_FILE_PATH="$GITHUB_WORKSPACE/.github/workflows/$TEMPLATE_FILE"
+        CUSTOM_BODY=""
+
         if [ -z "$REPO_NAME" ]; then
           REPO_NAME=$REPO_SLUG
+        fi
+
+        if [ -n "$TEMPLATE_FILE" ] && [ -f "$TEMPLATE_FILE_PATH" ]; then
+          echo "Including custom template from $TEMPLATE_FILE"
+          CUSTOM_BODY=$(<"$TEMPLATE_FILE_PATH")
+          CUSTOM_BODY=$(echo "$CUSTOM_BODY" | sed -e "s/%%REPO_NAME%%/${REPO_NAME}/g" \
+            -e "s/%%RELEASE_TAG%%/${RELEASE_TAG}/g"
+            -e "s/%%RELEASE_DATE%%/${RELEASE_DATE}/g"
+            -e "s|%%RELEASE_LINK%%|${RELEASE_LINK}|g"
+            -e "s|%%RELEASE_BODY%%|${RELEASE_BODY}|g")
+        else
+          echo "No custom template found. Using default release notes."
+        fi
+
+        if [ ${{ inputs.release_note_only_uses_template }} ]; then
+          RELEASE_BODY="${CUSTOM_BODY}"
         fi
 
         cat <<EOF > release-note.md
@@ -41,6 +71,8 @@ runs:
         ---
         
         The latest version of ${REPO_NAME}, [${RELEASE_TAG}](${RELEASE_LINK}), is available as of $(date +"%B, %d, %Y").
+
+        ${CUSTOM_BODY}
 
         ${RELEASE_BODY}
         EOF
