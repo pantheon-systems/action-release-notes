@@ -52,7 +52,7 @@ runs:
     - name: Create release note PR
       shell: bash
       run: |
-        RELEASE_NOTE_SLUG="${{ env.release_date }}-${REPO_SLUG}-$(echo "${{ github.event.release.tag_name }}" | tr '.' '-')"
+        RELEASE_NOTE_SLUG="${{ env.release_date }}-${{ env.repo_slug }}-$(echo "${{ github.event.release.tag_name }}" | tr '.' '-')"
         RELEASE_NOTE_FILENAME="${RELEASE_NOTE_SLUG}.md"
         PR_BRANCH="releasenote-${RELEASE_NOTE_SLUG}"
         PR_TITLE="Release note for ${{ env.repo_name }} ${{ github.event.release.tag_name }}"
