@@ -23,7 +23,7 @@ inputs:
     required: false
     default: false
   release_body_override:
-    description: "Override the release body with a customized message. Can be used to generate release note copy dynamically in a previous step and saved to an environment variable (e.g. `release_body: ${{ env.RELEASE_BODY }}`)."
+    description: "Override the release body with a customized message. Can be used to generate release note copy dynamically in a previous step and saved to an environment variable (e.g. `release_body: ${{ env.RELEASE_BODY }}`). Can be used with `release_note_only_uses_template: true` to only use the template and/or the release body and drop the notes from the release."
     required: false
 
 runs:
@@ -57,6 +57,14 @@ runs:
             -e "s|%%RELEASE_BODY%%|${RELEASE_BODY}|g")
         else
           echo "No custom template found. Using default release notes."
+        fi
+
+        if [ ${{ inputs.release_body_override }} ]; then
+          if [ -n "$CUSTOM_BODY" ]; then
+            CUSTOM_BODY="${CUSTOM_BODY}\n\n${{ inputs.release_body_override }}"
+          else
+            CUSTOM_BODY="${{ inputs.release_body_override }}"
+          fi
         fi
 
         if [ ${{ inputs.release_note_only_uses_template }} ]; then
