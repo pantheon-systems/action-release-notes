@@ -47,19 +47,23 @@ runs:
           REPO_NAME=$REPO_SLUG
         fi
 
+        echo "Generating release note for ${REPO_NAME} (${REPO_SLUG}) ${RELEASE_TAG}"
+        # Handle custom template
         if [ -n "$TEMPLATE_FILE" ] && [ -f "$TEMPLATE_FILE_PATH" ]; then
           echo "Including custom template from $TEMPLATE_FILE"
           CUSTOM_BODY=$(<"$TEMPLATE_FILE_PATH")
           CUSTOM_BODY=$(echo "$CUSTOM_BODY" | sed -e "s/%%REPO_NAME%%/${REPO_NAME}/g" \
-            -e "s/%%RELEASE_TAG%%/${RELEASE_TAG}/g"
-            -e "s/%%RELEASE_DATE%%/${RELEASE_DATE}/g"
-            -e "s|%%RELEASE_LINK%%|${RELEASE_LINK}|g"
+            -e "s/%%RELEASE_TAG%%/${RELEASE_TAG}/g" \
+            -e "s/%%RELEASE_DATE%%/${RELEASE_DATE}/g" \
+            -e "s|%%RELEASE_LINK%%|${RELEASE_LINK}|g" \
             -e "s|%%RELEASE_BODY%%|${RELEASE_BODY}|g")
         else
-          echo "No custom template found. Using default release notes."
+          echo "No custom template found. Skipping template inclusion."
         fi
 
-        if [ ${{ inputs.release_body_override }} ]; then
+        # Append release_body_override if provided
+        if [ -n "${{ inputs.release_body_override }}" ]; then
+          echo "Appending release body override."
           if [ -n "$CUSTOM_BODY" ]; then
             CUSTOM_BODY="${CUSTOM_BODY}\n\n${{ inputs.release_body_override }}"
           else
@@ -67,8 +71,12 @@ runs:
           fi
         fi
 
-        if [ ${{ inputs.release_note_only_uses_template }} ]; then
-          RELEASE_BODY="${CUSTOM_BODY}"
+        # Handle release_note_only_uses_template
+        if [ "${{ inputs.release_note_only_uses_template }}" = "true" ]; then
+          RELEASE_BODY="$CUSTOM_BODY"
+        else
+          # Combine CUSTOM_BODY and RELEASE_BODY
+          RELEASE_BODY="${CUSTOM_BODY}\n\n${RELEASE_BODY}"
         fi
 
         cat <<EOF > release-note.md
