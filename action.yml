@@ -28,14 +28,14 @@ runs:
         RELEASE_DATE=$(date +%Y-%m-%d)
         RELEASE_LINK="https://github.com/${{ github.repository }}/releases/tag/${RELEASE_TAG}"
         REPO_SLUG=$(basename "${{ github.repository }}")
-        REPO_NAME=${{ inputs.repo_name }}
+        REPO_NAME="${{ inputs.repo_name }}"
         if [ -z "$REPO_NAME" ]; then
           REPO_NAME=$REPO_SLUG
         fi
 
         cat <<EOF > release-note.md
         ---
-        title: ${REPO_NAME} ${RELEASE_TAG} now available
+        title: "${REPO_NAME} ${RELEASE_TAG} now available"
         published_date: "${RELEASE_DATE}"
         categories: [${{ inputs.categories }}]
         ---
