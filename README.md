@@ -31,6 +31,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.TOKEN }}
         with:
+		  github_token: ${{ secrets.TOKEN }}
           repo_name: Plugin Pipeline Example
           categories: wordpress,plugins
 ```
@@ -46,12 +47,12 @@ A custom template file can be added to your `.github/workflows` directory to cus
 * `%%RELEASE_BODY%%` - The body of the GitHub release, pulled from the GitHub release body
 
 ## Tokens
-A valid Personal Access Token (PAT) with the `repo` and `workflow` scopes is required to run this action. Additionally, Pantheon Systems must be authorized on the PAT for the action to be able to create the PR in the documentation repository. Internally, the action uses the `${{ env.GH_TOKEN }}` set in the workflow step (see example above) but a different token can be set to push the branch to the Documentation repository.
+A valid Personal Access Token (PAT) with the `repo` and `workflow` scopes is required to run this action. Additionally, Pantheon Systems must be authorized on the PAT for the action to be able to create the PR in the documentation repository. This must be set in both the `GH_TOKEN` `env` variable (used to run the `gh` CLI commands) and in the workflow inputs (`github_token`) to create the branch on the remote documentation repository (see example above).
 
 ## Inputs
 
 ### `github_token`
-(Optional) A GitHub Personal Access Token with access to the Documentation repository.
+(**Required**) A GitHub Personal Access Token with access to the Documentation repository. Used to create the pull request in the documentation repository.
 
 default: `${{ env.GH_TOKEN }}`
 
