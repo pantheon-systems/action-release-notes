@@ -31,7 +31,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.TOKEN }}
         with:
-		  github_token: ${{ secrets.TOKEN }}
+          github_token: ${{ secrets.TOKEN }}
           repo_name: Plugin Pipeline Example
           categories: wordpress,plugins
 ```
