@@ -2,7 +2,7 @@
 
 [![Unsupported](https://img.shields.io/badge/Pantheon-Unsupported-yello?logo=pantheon&color=ffdc28)](https://pr-9097-documentation.appa.pantheon.site/oss-support-levels#unsupported)
 ![GitHub License](https://img.shields.io/github/license/pantheon-systems/action-release-notes)
-![GitHub Release](https://img.shields.io/github/v/release/pantheon-systems/action-relese-notes)
+![GitHub Release](https://img.shields.io/github/v/release/pantheon-systems/action-release-notes)
 
 
 **Automated release note generation**
