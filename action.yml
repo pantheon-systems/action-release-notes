@@ -100,4 +100,4 @@ runs:
           --base main \
           --head ${PR_BRANCH} \
           --title "${PR_TITLE}" \
-          --BODY "${PR_BODY}"
+          --body "${PR_BODY}"
