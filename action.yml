@@ -65,7 +65,8 @@ runs:
         if [ -n "${{ inputs.release_body_override }}" ]; then
           echo "Appending release body override."
           if [ -n "$CUSTOM_BODY" ]; then
-            CUSTOM_BODY="${CUSTOM_BODY}\n\n${{ inputs.release_body_override }}"
+            CUSTOM_BODY="${CUSTOM_BODY}
+            ${{ inputs.release_body_override }}"
           else
             CUSTOM_BODY="${{ inputs.release_body_override }}"
           fi
@@ -76,7 +77,8 @@ runs:
           RELEASE_BODY="$CUSTOM_BODY"
         else
           # Combine CUSTOM_BODY and RELEASE_BODY
-          RELEASE_BODY="${CUSTOM_BODY}\n\n${RELEASE_BODY}"
+          RELEASE_BODY="${CUSTOM_BODY}
+          ${RELEASE_BODY}"
         fi
 
         cat <<EOF > release-note.md
