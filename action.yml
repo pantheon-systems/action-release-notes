@@ -76,10 +76,15 @@ runs:
         git config --global user.email "bot@getpantheon.com"
         git remote set-url origin https://${{ inputs.github_token }}@github.com/${{ inputs.docs_repo }}.git
         
-        git checkout -b ${PR_BRANCH}
-        git add source/releasenotes/${RELEASE_NOTE_FILENAME}
-        git commit -m "Add release notes for ${{ env.repo_name }} ${{ github.event.release.tag_name }}"
-        git push --set-upstream origin ${PR_BRANCH}
+        echo "Checking if branch ${PR_BRANCH} already exists..."
+        if git ls-remote --heads origin "${PR_BRANCH}" | grep -q "${PR_BRANCH}"; then
+          echo "Branch ${PR_BRANCH} already exists. Skipping branch creation."
+        else
+          echo "Branch does not exist. Creating..."
+          git checkout -b ${PR_BRANCH}
+          git add source/releasenotes/${RELEASE_NOTE_FILENAME}
+          git commit -m "Add release notes for ${{ env.repo_name }} ${{ github.event.release.tag_name }}"
+          git push --set-upstream origin ${PR_BRANCH}
 
         # Wait for the branch to be created.
         RETRIES=0
@@ -94,6 +99,12 @@ runs:
         done
         echo "Branch ${PR_BRANCH} exists on remote."
 
+        EXISTING_PR=$(gh pr list --head ${PR_BRANCH} --repo ${{ inputs.docs_repo }} --json number --jq '.[].number')
+        if [ -n "$EXISTING_PR" ]; then
+          echo "Pull request already exists for branch ${PR_BRANCH} (#${EXISTING_PR}). Nothing to do here. 🍵"
+          exit 0
+        fi
+        
         echo "Creating pull request"
         gh pr create \
           --repo ${{ inputs.docs_repo }} \
