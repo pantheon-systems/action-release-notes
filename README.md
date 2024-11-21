@@ -68,7 +68,7 @@ default: `pantheon-systems/documentation`
 
 default: The repository slug (e.g. `$( basename ${{ github.repository }})`)
 
-### template_file:
+### `template_file`
 (Optional) Custom release note template file. Should be stored in your `.github/workflows/` folder.
 
 ### `release_note_only_uses_template`
