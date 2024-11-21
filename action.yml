@@ -96,13 +96,18 @@ runs:
         RELEASE_NOTE_FILENAME="${RELEASE_NOTE_SLUG}.md"
         PR_BRANCH="releasenote-${RELEASE_NOTE_SLUG}"
         PR_TITLE="Release note for ${{ env.repo_name }} ${{ github.event.release.tag_name }}"
-        PR_BODY="**[Release Notes](https://docs.pantheon.io/releasenotes)** - Adds a release note for [${{ env.repo_name }} ${{ github.event.release.tag_name }}](https://github.com/${{ github.repository }}/releases/tag/${{ github.event.release.tag_name }})."
+        PR_BODY="**[Release Notes](https://docs.pantheon.io/release-notes)** - Adds a release note for [${{ env.repo_name }} ${{ github.event.release.tag_name }}](https://github.com/${{ github.repository }}/releases/tag/${{ github.event.release.tag_name }})."
 
         echo "Cloning documentation repository: ${{ inputs.docs_repo }}"
         git clone https://github.com/"${{ inputs.docs_repo }}".git
+        if [ ! -d "$GITHUB_WORKSPACE/documentation" ]; then
+          echo "Error: The documentation directory does not appear to exist."
+          ls -l $GITHUB_WORKSPACE
+          exit 1
+        fi
         echo "Copying the release notes"
         if [ -f "${{ env.release_notes_path }}" ]; then
-          mv "${{ env.release_notes_path }}" documentation/source/release-notes/${RELEASE_NOTE_FILENAME}
+          mv "${{ env.release_notes_path }}" documentation/source/releasenotes/${RELEASE_NOTE_FILENAME}
           echo "Release notes copied successfully."
         else
           echo "Error: Release notes file not found at ${{ env.release_notes_path }}"
