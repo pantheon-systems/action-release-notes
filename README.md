@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Generate release notes
-        uses: pantheon-systems/action-release-notes@main
+        uses: pantheon-systems/action-release-notes@v1
         env:
           GH_TOKEN: ${{ secrets.TOKEN }}
         with:
