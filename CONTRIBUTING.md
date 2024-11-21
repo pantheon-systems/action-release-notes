@@ -21,3 +21,4 @@ git push origin main
 
 - [ ] Break out bash scripts into separate files rather than everything being inside the `action.yml`.
 - [ ] Automate releases.
+- [ ] Figure out a generic Pantheon token that can be used universally for this action across repositories that's not tied to an individual user.
