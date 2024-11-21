@@ -85,6 +85,7 @@ runs:
           git add source/releasenotes/${RELEASE_NOTE_FILENAME}
           git commit -m "Add release notes for ${{ env.repo_name }} ${{ github.event.release.tag_name }}"
           git push --set-upstream origin ${PR_BRANCH}
+        fi
 
         # Wait for the branch to be created.
         RETRIES=0
@@ -104,7 +105,7 @@ runs:
           echo "Pull request already exists for branch ${PR_BRANCH} (#${EXISTING_PR}). Nothing to do here. 🍵"
           exit 0
         fi
-        
+
         echo "Creating pull request"
         gh pr create \
           --repo ${{ inputs.docs_repo }} \
