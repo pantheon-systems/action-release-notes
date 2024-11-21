@@ -96,8 +96,8 @@ runs:
 
         echo "Creating pull request"
         gh pr create \
-          --repo ${{ inputs.docs_repo }}
+          --repo ${{ inputs.docs_repo }} \
           --base main \
-          --head ${PR_BRANCH}
+          --head ${PR_BRANCH} \
           --title "${PR_TITLE}" \
           --BODY "${PR_BODY}"
