@@ -167,4 +167,5 @@ runs:
           --base main \
           --head ${PR_BRANCH} \
           --title "${PR_TITLE}" \
-          --body "${PR_BODY}"
+          --body "${PR_BODY}" \
+          --draft

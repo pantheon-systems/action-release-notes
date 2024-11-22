@@ -9,7 +9,7 @@
 
 _For internal use only._ This action will not work for and is not intended to be used on non-`pantheon-systems` repositories.
 
-This Action is intended to be used on Pantheon repositories to automatically generate a Docs Release Note PR when a new release is created. By default, the action will pull the content of the release note from the GitHub release and add the appropriate release note syntax around it to standardize release notes for Pantheon OSS projects.
+This Action is intended to be used on Pantheon repositories to automatically generate a Docs Release Note PR (in draft form) when a new release is created. By default, the action will pull the content of the release note from the GitHub release and add the appropriate release note syntax around it to standardize release notes for Pantheon OSS projects.
 
 ## Usage
 
@@ -53,8 +53,6 @@ A valid Personal Access Token (PAT) with the `repo` and `workflow` scopes is req
 
 ### `github_token`
 (**Required**) A GitHub Personal Access Token with access to the Documentation repository. Used to create the pull request in the documentation repository.
-
-default: `${{ env.GH_TOKEN }}`
 
 ### `categories`
 (**Required**) Comma-separated list of categories for the release note. For a complete list of categories and descriptions, see https://github.com/pantheon-systems/documentation/blob/main/source/releasenotescategories/releaseNoteCategories.json
