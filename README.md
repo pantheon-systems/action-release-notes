@@ -54,8 +54,6 @@ A valid Personal Access Token (PAT) with the `repo` and `workflow` scopes is req
 ### `github_token`
 (**Required**) A GitHub Personal Access Token with access to the Documentation repository. Used to create the pull request in the documentation repository.
 
-default: `${{ env.GH_TOKEN }}`
-
 ### `categories`
 (**Required**) Comma-separated list of categories for the release note. For a complete list of categories and descriptions, see https://github.com/pantheon-systems/documentation/blob/main/source/releasenotescategories/releaseNoteCategories.json
 
