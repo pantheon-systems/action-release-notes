@@ -25,6 +25,12 @@ inputs:
   release_body_override:
     description: "Override the release body with a customized message. Can be used to generate release note copy dynamically in a previous step and saved to an environment variable. Can be used with `release_note_only_uses_template: true` to only use the template and/or the release body and drop the notes from the release."
     required: false
+  release_tag_override:
+    description: "Override the release tag. Required when the workflow is not triggered by a `release` event (where `github.event.release.tag_name` is empty) — for example a `workflow_dispatch` rehearsal or a release flow driven by something other than a GitHub Release."
+    required: false
+  release_link_override:
+    description: "Override the URL the release note links to. Defaults to the GitHub release page for the tag, which does not exist when there is no GitHub Release."
+    required: false
 
 runs:
   using: composite
@@ -34,10 +40,24 @@ runs:
       run: |
         RELEASE_NAME="${{ github.event.release.name }}"
         RELEASE_BODY="${{ github.event.release.body }}"
-        RELEASE_TAG="${{ github.event.release.tag_name }}"
+        RELEASE_TAG="${{ inputs.release_tag_override }}"
         RELEASE_DATE=$(date +%Y-%m-%d)
-        RELEASE_LINK="https://github.com/${{ github.repository }}/releases/tag/${RELEASE_TAG}"
         REPO_SLUG=$(basename "${{ github.repository }}")
+
+        # Without a release event there is no tag to read, so a caller on any
+        # other trigger has to supply one.
+        if [ -z "$RELEASE_TAG" ]; then
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+        fi
+        if [ -z "$RELEASE_TAG" ]; then
+          echo "::error::No release tag. This action reads github.event.release.tag_name, which is only set on a 'release' event; pass release_tag_override when using any other trigger."
+          exit 1
+        fi
+
+        RELEASE_LINK="${{ inputs.release_link_override }}"
+        if [ -z "$RELEASE_LINK" ]; then
+          RELEASE_LINK="https://github.com/${{ github.repository }}/releases/tag/${RELEASE_TAG}"
+        fi
         REPO_NAME="${{ inputs.repo_name }}"
         TEMPLATE_FILE="${{ inputs.template_file }}"
         TEMPLATE_FILE_PATH="$GITHUB_WORKSPACE/.github/workflows/$TEMPLATE_FILE"
@@ -99,14 +119,16 @@ runs:
         echo "release_date=${RELEASE_DATE}" >> $GITHUB_ENV
         echo "repo_name=${REPO_NAME}" >> $GITHUB_ENV
         echo "repo_slug=${REPO_SLUG}" >> $GITHUB_ENV
+        echo "release_tag=${RELEASE_TAG}" >> $GITHUB_ENV
+        echo "release_link=${RELEASE_LINK}" >> $GITHUB_ENV
     - name: Create release note PR
       shell: bash
       run: |
-        RELEASE_NOTE_SLUG="${{ env.release_date }}-${{ env.repo_slug }}-$(echo "${{ github.event.release.tag_name }}" | tr '.' '-')"
+        RELEASE_NOTE_SLUG="${{ env.release_date }}-${{ env.repo_slug }}-$(echo "${{ env.release_tag }}" | tr '.' '-')"
         RELEASE_NOTE_FILENAME="${RELEASE_NOTE_SLUG}.md"
         PR_BRANCH="releasenote-${RELEASE_NOTE_SLUG}"
-        PR_TITLE="Release note for ${{ env.repo_name }} ${{ github.event.release.tag_name }}"
-        PR_BODY="**[Release Notes](https://docs.pantheon.io/release-notes)** - Adds a release note for [${{ env.repo_name }} ${{ github.event.release.tag_name }}](https://github.com/${{ github.repository }}/releases/tag/${{ github.event.release.tag_name }})."
+        PR_TITLE="Release note for ${{ env.repo_name }} ${{ env.release_tag }}"
+        PR_BODY="**[Release Notes](https://docs.pantheon.io/release-notes)** - Adds a release note for [${{ env.repo_name }} ${{ env.release_tag }}](${{ env.release_link }})."
 
         echo "Cloning documentation repository: ${{ inputs.docs_repo }}"
         git clone https://github.com/"${{ inputs.docs_repo }}".git
@@ -138,7 +160,7 @@ runs:
           echo "Branch does not exist. Creating..."
           git checkout -b ${PR_BRANCH}
           git add source/releasenotes/${RELEASE_NOTE_FILENAME}
-          git commit -m "Add release notes for ${{ env.repo_name }} ${{ github.event.release.tag_name }}"
+          git commit -m "Add release notes for ${{ env.repo_name }} ${{ env.release_tag }}"
           git push --set-upstream origin ${PR_BRANCH}
         fi
 
