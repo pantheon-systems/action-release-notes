@@ -42,6 +42,9 @@ runs:
         RELEASE_BODY="${{ github.event.release.body }}"
         RELEASE_TAG="${{ inputs.release_tag_override }}"
         RELEASE_DATE=$(date +%Y-%m-%d)
+        # The docs repo's validate-release-notes check requires published_at
+        # and rejects a midnight default, so stamp the actual current time.
+        PUBLISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
         REPO_SLUG=$(basename "${{ github.repository }}")
 
         # Without a release event there is no tag to read, so a caller on any
@@ -105,6 +108,7 @@ runs:
         ---
         title: "${REPO_NAME} ${RELEASE_TAG} now available"
         published_date: "${RELEASE_DATE}"
+        published_at: "${PUBLISHED_AT}"
         categories: [${{ inputs.categories }}]
         ---
         
@@ -137,15 +141,27 @@ runs:
           ls -l $GITHUB_WORKSPACE
           exit 1
         fi
+        # The docs repo moved its sources under src/; support both so this
+        # keeps working against older checkouts and forks.
+        if [ -d documentation/src/source/releasenotes ]; then
+          RELEASE_NOTES_DIR="src/source/releasenotes"
+        elif [ -d documentation/source/releasenotes ]; then
+          RELEASE_NOTES_DIR="source/releasenotes"
+        else
+          echo "::error::No release notes directory in ${{ inputs.docs_repo }} (looked for src/source/releasenotes and source/releasenotes)."
+          exit 1
+        fi
+        echo "Using release notes directory: ${RELEASE_NOTES_DIR}"
+
         echo "Copying the release notes"
         if [ -f "${{ env.release_notes_path }}" ]; then
-          mv "${{ env.release_notes_path }}" documentation/source/releasenotes/${RELEASE_NOTE_FILENAME}
+          mv "${{ env.release_notes_path }}" "documentation/${RELEASE_NOTES_DIR}/${RELEASE_NOTE_FILENAME}"
           echo "Release notes copied successfully."
         else
           echo "Error: Release notes file not found at ${{ env.release_notes_path }}"
           exit 1
         fi
-        cat documentation/source/releasenotes/"${RELEASE_NOTE_FILENAME}"
+        cat "documentation/${RELEASE_NOTES_DIR}/${RELEASE_NOTE_FILENAME}"
         cd documentation
 
         echo "Setting up git config"
@@ -159,7 +175,7 @@ runs:
         else
           echo "Branch does not exist. Creating..."
           git checkout -b ${PR_BRANCH}
-          git add source/releasenotes/${RELEASE_NOTE_FILENAME}
+          git add "${RELEASE_NOTES_DIR}/${RELEASE_NOTE_FILENAME}"
           git commit -m "Add release notes for ${{ env.repo_name }} ${{ env.release_tag }}"
           git push --set-upstream origin ${PR_BRANCH}
         fi
