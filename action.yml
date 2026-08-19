@@ -114,8 +114,6 @@ runs:
         
         The latest version of ${REPO_NAME}, [${RELEASE_TAG}](${RELEASE_LINK}), is available as of $(date +"%B, %d, %Y").
 
-        ${CUSTOM_BODY}
-
         ${RELEASE_BODY}
         EOF
 
