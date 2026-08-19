@@ -1,0 +1,171 @@
+name: Generate Release Note
+description: Automated release note generation. This action will generate a docs release note from the GitHub release note and create a pull request in the docs repository.
+author: Pantheon Systems
+inputs:
+  github_token:
+    description: A GitHub Personal Access Token with access to the Documentation repository.
+    required: true
+  categories:
+    description: Comma-separated list of categories for the release note. For a complete list of categories and descriptions, see https://github.com/pantheon-systems/documentation/blob/main/source/releasenotescategories/releaseNoteCategories.json
+    required: true
+  docs_repo:
+    description: The documentation repository to create the pull request. (Optional, included for testing against forked repositories.) Must be in <vendor>/<repository> format.
+    required: false
+    default: pantheon-systems/documentation
+  repo_name:
+    description: The repository or project name. Used to create the human-readable repository name (rather than the repo slug). Optional but recommended.
+    required: false
+  template_file:
+    description: Custom release note template file. Should be stored in your .github/workflows/ folder.
+    required: false
+  release_note_only_uses_template:
+    description: Whether the release note should only use the template or to combine the release note template (via template_file) with the actual release notes from the release. Defaults to combine both.
+    required: false
+    default: false
+  release_body_override:
+    description: "Override the release body with a customized message. Can be used to generate release note copy dynamically in a previous step and saved to an environment variable. Can be used with `release_note_only_uses_template: true` to only use the template and/or the release body and drop the notes from the release."
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Generate release notes
+      shell: bash
+      run: |
+        RELEASE_NAME="${{ github.event.release.name }}"
+        RELEASE_BODY="${{ github.event.release.body }}"
+        RELEASE_TAG="${{ github.event.release.tag_name }}"
+        RELEASE_DATE=$(date +%Y-%m-%d)
+        RELEASE_LINK="https://github.com/${{ github.repository }}/releases/tag/${RELEASE_TAG}"
+        REPO_SLUG=$(basename "${{ github.repository }}")
+        REPO_NAME="${{ inputs.repo_name }}"
+        TEMPLATE_FILE="${{ inputs.template_file }}"
+        TEMPLATE_FILE_PATH="$GITHUB_WORKSPACE/.github/workflows/$TEMPLATE_FILE"
+        CUSTOM_BODY=""
+
+        if [ -z "$REPO_NAME" ]; then
+          REPO_NAME=$REPO_SLUG
+        fi
+
+        echo "Generating release note for ${REPO_NAME} (${REPO_SLUG}) ${RELEASE_TAG}"
+        # Handle custom template
+        if [ -n "$TEMPLATE_FILE" ] && [ -f "$TEMPLATE_FILE_PATH" ]; then
+          echo "Including custom template from $TEMPLATE_FILE"
+          CUSTOM_BODY=$(<"$TEMPLATE_FILE_PATH")
+          CUSTOM_BODY=$(echo "$CUSTOM_BODY" | sed -e "s/%%REPO_NAME%%/${REPO_NAME}/g" \
+            -e "s/%%RELEASE_TAG%%/${RELEASE_TAG}/g" \
+            -e "s/%%RELEASE_DATE%%/${RELEASE_DATE}/g" \
+            -e "s|%%RELEASE_LINK%%|${RELEASE_LINK}|g" \
+            -e "s|%%RELEASE_BODY%%|${RELEASE_BODY}|g")
+        else
+          echo "No custom template found. Skipping template inclusion."
+        fi
+
+        # Append release_body_override if provided
+        if [ -n "${{ inputs.release_body_override }}" ]; then
+          echo "Appending release body override."
+          if [ -n "$CUSTOM_BODY" ]; then
+            CUSTOM_BODY="${CUSTOM_BODY}
+            ${{ inputs.release_body_override }}"
+          else
+            CUSTOM_BODY="${{ inputs.release_body_override }}"
+          fi
+        fi
+
+        # Handle release_note_only_uses_template
+        if [ "${{ inputs.release_note_only_uses_template }}" = "true" ]; then
+          RELEASE_BODY="$CUSTOM_BODY"
+        else
+          # Combine CUSTOM_BODY and RELEASE_BODY
+          RELEASE_BODY="${CUSTOM_BODY}
+          ${RELEASE_BODY}"
+        fi
+
+        cat <<EOF > release-note.md
+        ---
+        title: "${REPO_NAME} ${RELEASE_TAG} now available"
+        published_date: "${RELEASE_DATE}"
+        categories: [${{ inputs.categories }}]
+        ---
+        
+        The latest version of ${REPO_NAME}, [${RELEASE_TAG}](${RELEASE_LINK}), is available as of $(date +"%B, %d, %Y").
+
+        ${CUSTOM_BODY}
+
+        ${RELEASE_BODY}
+        EOF
+
+        echo "release_notes_path=$(pwd)/release-note.md" >> $GITHUB_ENV
+        echo "release_date=${RELEASE_DATE}" >> $GITHUB_ENV
+        echo "repo_name=${REPO_NAME}" >> $GITHUB_ENV
+        echo "repo_slug=${REPO_SLUG}" >> $GITHUB_ENV
+    - name: Create release note PR
+      shell: bash
+      run: |
+        RELEASE_NOTE_SLUG="${{ env.release_date }}-${{ env.repo_slug }}-$(echo "${{ github.event.release.tag_name }}" | tr '.' '-')"
+        RELEASE_NOTE_FILENAME="${RELEASE_NOTE_SLUG}.md"
+        PR_BRANCH="releasenote-${RELEASE_NOTE_SLUG}"
+        PR_TITLE="Release note for ${{ env.repo_name }} ${{ github.event.release.tag_name }}"
+        PR_BODY="**[Release Notes](https://docs.pantheon.io/release-notes)** - Adds a release note for [${{ env.repo_name }} ${{ github.event.release.tag_name }}](https://github.com/${{ github.repository }}/releases/tag/${{ github.event.release.tag_name }})."
+
+        echo "Cloning documentation repository: ${{ inputs.docs_repo }}"
+        git clone https://github.com/"${{ inputs.docs_repo }}".git
+        if [ ! -d "$GITHUB_WORKSPACE/documentation" ]; then
+          echo "Error: The documentation directory does not appear to exist."
+          ls -l $GITHUB_WORKSPACE
+          exit 1
+        fi
+        echo "Copying the release notes"
+        if [ -f "${{ env.release_notes_path }}" ]; then
+          mv "${{ env.release_notes_path }}" documentation/source/releasenotes/${RELEASE_NOTE_FILENAME}
+          echo "Release notes copied successfully."
+        else
+          echo "Error: Release notes file not found at ${{ env.release_notes_path }}"
+          exit 1
+        fi
+        cat documentation/source/releasenotes/"${RELEASE_NOTE_FILENAME}"
+        cd documentation
+
+        echo "Setting up git config"
+        git config --global user.name "Pantheon Bot"
+        git config --global user.email "bot@getpantheon.com"
+        git remote set-url origin https://${{ inputs.github_token }}@github.com/${{ inputs.docs_repo }}.git
+        
+        echo "Checking if branch ${PR_BRANCH} already exists..."
+        if git ls-remote --heads origin "${PR_BRANCH}" | grep -q "${PR_BRANCH}"; then
+          echo "Branch ${PR_BRANCH} already exists. Skipping branch creation."
+        else
+          echo "Branch does not exist. Creating..."
+          git checkout -b ${PR_BRANCH}
+          git add source/releasenotes/${RELEASE_NOTE_FILENAME}
+          git commit -m "Add release notes for ${{ env.repo_name }} ${{ github.event.release.tag_name }}"
+          git push --set-upstream origin ${PR_BRANCH}
+        fi
+
+        # Wait for the branch to be created.
+        RETRIES=0
+        while ! git ls-remote --heads origin ${PR_BRANCH} | grep -q "${PR_BRANCH}"; do
+          RETRIES=$((RETRIES+1))
+          if [ ${RETRIES} -ge 5 ]; then
+            echo "Branch ${PR_BRANCH} still not found after 5 retries. Exiting..."
+            exit 1
+          fi
+          echo "Branch ${PR_BRANCH} not found on remote. Waiting for propagation...(${RETRIES}/5)"
+          sleep 5
+        done
+        echo "Branch ${PR_BRANCH} exists on remote."
+
+        EXISTING_PR=$(gh pr list --head ${PR_BRANCH} --repo ${{ inputs.docs_repo }} --json number --jq '.[].number')
+        if [ -n "$EXISTING_PR" ]; then
+          echo "Pull request already exists for branch ${PR_BRANCH} (#${EXISTING_PR}). Nothing to do here. 🍵"
+          exit 0
+        fi
+
+        echo "Creating pull request"
+        gh pr create \
+          --repo ${{ inputs.docs_repo }} \
+          --base main \
+          --head ${PR_BRANCH} \
+          --title "${PR_TITLE}" \
+          --body "${PR_BODY}" \
+          --draft
