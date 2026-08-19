@@ -167,7 +167,10 @@ runs:
         echo "Setting up git config"
         git config --global user.name "Pantheon Bot"
         git config --global user.email "bot@getpantheon.com"
-        git remote set-url origin https://${{ inputs.github_token }}@github.com/${{ inputs.docs_repo }}.git
+        # x-access-token: works for both PATs and GitHub App installation
+        # tokens; a bare token@host makes git prompt for a password with an
+        # installation token and fail on a non-interactive runner.
+        git remote set-url origin https://x-access-token:${{ inputs.github_token }}@github.com/${{ inputs.docs_repo }}.git
         
         echo "Checking if branch ${PR_BRANCH} already exists..."
         if git ls-remote --heads origin "${PR_BRANCH}" | grep -q "${PR_BRANCH}"; then
