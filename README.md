@@ -77,3 +77,21 @@ default: `false`
 
 ### `release_body_override`
 (Optional) Override the release body with a customized message. Can be used to generate release note copy dynamically in a previous step and saved to an environment variable (e.g. `release_body: ${{ env.RELEASE_BODY }}`). Can be used with `release_note_only_uses_template: true` to only use the template and/or the release body and drop the notes from the release. Can be used alongside a custom `template_file` if it exists.
+
+### `release_tag_override`
+(Optional) Override the release tag.
+
+The action otherwise reads the tag from `github.event.release.tag_name`, which is only populated on a `release` event. That tag determines the release note filename, the PR branch, the PR title, and the commit message, so on any other trigger — a `workflow_dispatch` rehearsal, or a release process not driven by a GitHub Release — it must be supplied here. The action fails with a clear error if neither is set.
+
+```yaml
+- uses: pantheon-systems/action-release-notes@v1
+  with:
+    github_token: ${{ secrets.TOKEN }}
+    categories: wordpress
+    release_tag_override: 7.0.5
+```
+
+### `release_link_override`
+(Optional) Override the URL the release note links to.
+
+Defaults to the GitHub release page for the tag. When there is no GitHub Release, that page does not exist, so point this at whatever the canonical announcement is (e.g. an upstream release post).
